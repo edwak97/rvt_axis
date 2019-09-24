@@ -41,7 +41,7 @@ namespace ElementReader
                 familyInst_el = currentDoc.GetElement(elId);
             }
             if (familyInst_el == null) { TaskDialog.Show("Addin", "It is null."); return Result.Failed; }
-            TaskDialog.Show("Addin", String.Format("The following object name is belongs to the family {0}", familyInst_el.Category.Name));
+            TaskDialog.Show("Addin", String.Format("The following object name is belongs to the family {0}", familyInst_el.Category.ToString()));
             return Result.Succeeded;
         }
     }

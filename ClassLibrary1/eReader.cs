@@ -12,7 +12,6 @@ using Autodesk.Revit.Attributes;
 
 namespace ElementReader
 {
-    [Transaction(TransactionMode.ReadOnly)]
     public class ElementReader : IExternalCommand
     {
         public Result Execute(ExternalCommandData externalCommandData, ref string str, ElementSet element)
@@ -35,13 +34,22 @@ namespace ElementReader
                 }
             }
             /*Getting the element by Id and checking if the element belongs to Axis type*/
-            Element familyInst_el = null;
-            foreach(ElementId elId in collection)
+            Element current_el = null;
+            foreach (ElementId elId in collection)
             {
-                familyInst_el = currentDoc.GetElement(elId);
+                current_el = currentDoc.GetElement(elId);
             }
-            if (familyInst_el == null) { TaskDialog.Show("Addin", "It is null."); return Result.Failed; }
-            TaskDialog.Show("Addin", String.Format("The following object name is belongs to the family {0}", familyInst_el.Category.ToString()));
+            Category category = current_el.Category;
+
+            BuiltInCategory enumCategory = (BuiltInCategory)category.Id.IntegerValue;
+            if(enumCategory!=BuiltInCategory.OST_Grids)
+            {
+                TaskDialog.Show("Addin", "The object you have selected is is not AXIS");
+                return Result.Failed;
+            }
+            
+            TaskDialog.Show("Addin", String.Format( "Its category is {0}",enumCategory.ToString()));
+
             return Result.Succeeded;
         }
     }

@@ -12,6 +12,7 @@ using Autodesk.Revit.Attributes;
 
 namespace ElementReader
 {
+    [Transaction(TransactionMode.ReadOnly)]
     public class ElementReader : IExternalCommand
     {
         public Result Execute(ExternalCommandData externalCommandData, ref string str, ElementSet element)
@@ -42,15 +43,55 @@ namespace ElementReader
             Category category = current_el.Category;
 
             BuiltInCategory enumCategory = (BuiltInCategory)category.Id.IntegerValue;
-            if(enumCategory!=BuiltInCategory.OST_Grids)
+            if (enumCategory != BuiltInCategory.OST_Grids) /**/
             {
                 TaskDialog.Show("Addin", "The object you have selected is is not AXIS");
                 return Result.Failed;
             }
-            
-            TaskDialog.Show("Addin", String.Format( "Its category is {0}",enumCategory.ToString()));
-
+            TaskDialog.Show("Addin", getElementParameters(current_el));
             return Result.Succeeded;
         }
+        string getElementParameters(Element el)
+        {
+            string messageBack = "The parameters of this element are:";
+            ParameterSet parameterSet = el.Parameters;
+            foreach (Parameter parameter in parameterSet)
+            {
+                string former_para = "\n"+parameter.Definition.Name + " : ";
+                switch (parameter.StorageType)
+                {
+                    case StorageType.Integer:
+                        if (parameter.Definition.ParameterType == ParameterType.YesNo)
+                        {
+                            if (parameter.AsInteger() == 0)
+                            {
+                                former_para += "False";
+                            }
+                            else
+                            {
+                                former_para += "True";
+                            }
+                            break;
+                        }
+                        former_para += parameter.AsInteger();
+                        break;
+                    case StorageType.String:
+                        former_para += parameter.AsString();
+                        break;
+                    case StorageType.Double:
+                        former_para += parameter.AsValueString();
+                        break;
+                    case StorageType.ElementId:
+                        former_para += parameter.AsElementId().ToString();
+                        break;
+                    default:
+                        former_para += "UNKNOWN";
+                        break;
+                }
+                messageBack += former_para+";";
+            }
+            return messageBack;
+        }
+
     }
 }

@@ -6,7 +6,7 @@ C:\Users\1\source\repos\ClassLibrary1\ClassLibrary1\obj\Debug\ClassLibrary1.dll
 C:\Users\1\source\repos\ClassLibrary1\ClassLibrary1\obj\Debug\ClassLibrary1.pdb
 C:\TestAddons\rvt_axis\ClassLibrary1\bin\Debug\ClassLibrary1.dll
 C:\TestAddons\rvt_axis\ClassLibrary1\bin\Debug\ClassLibrary1.pdb
+C:\TestAddons\rvt_axis\ClassLibrary1\obj\Debug\ElementReader.csprojAssemblyReference.cache
 C:\TestAddons\rvt_axis\ClassLibrary1\obj\Debug\ElementReader.csproj.CoreCompileInputs.cache
 C:\TestAddons\rvt_axis\ClassLibrary1\obj\Debug\ClassLibrary1.dll
 C:\TestAddons\rvt_axis\ClassLibrary1\obj\Debug\ClassLibrary1.pdb
-C:\TestAddons\rvt_axis\ClassLibrary1\obj\Debug\ElementReader.csprojAssemblyReference.cache

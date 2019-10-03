@@ -4,6 +4,7 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.Attributes;
+using System.Text;
 
 
 namespace ElementReader
@@ -17,82 +18,65 @@ namespace ElementReader
             Document currentDoc = UIcurrentDoc.Document;
             Selection selection = UIcurrentDoc.Selection;
             ICollection<ElementId> collection = selection.GetElementIds(); //Retrieving element Ids from the selection
-            if (collection.Count == 0 | collection.Count > 1)
+            if (collection.Count == 0)
             {
-                if (collection.Count == 0)
-                {
-                    TaskDialog.Show("AxisAddin", "Sorry, man you haven't selected anything.");
-                    return Result.Failed;
-                }
-                else
-                {
-                    TaskDialog.Show("AxisAddin", "Please, choose only a one object.");
-                    return Result.Failed;
-                }
+                TaskDialog.Show("AxisAddin", "You haven't selected any grids");
+                return Result.Failed;
             }
             /*Getting the element by Id and checking if the element belongs to Axis type*/
-            Element current_el = null;
+            List<Grid> elList = new List<Grid>();
             foreach (ElementId elId in collection)
             {
-                current_el = currentDoc.GetElement(elId);
+                Element current_el = currentDoc.GetElement(elId);
+                /*BuiltInCategory enumCategory = (BuiltInCategory)current_el.Category.Id.IntegerValue;
+                if (enumCategory != BuiltInCategory.OST_Grids) 
+                {
+                    TaskDialog.Show("Addin", "Sorry. It is not Grid");
+                    return Result.Failed; 
+                }
+                //Too many lines. There is the better way:
+                */
+                if (!(current_el is Grid))
+                {
+                    TaskDialog.Show("Addin", "Sorry. It is not Grid");
+                    return Result.Failed;
+                }
+                elList.Add(current_el as Grid);
             }
-            Category category = current_el.Category;
-
-            BuiltInCategory enumCategory = (BuiltInCategory)category.Id.IntegerValue;
-            if (enumCategory != BuiltInCategory.OST_Grids) /**/
+            // checking if the grids are parallel
+            if (!areGridsParallel(elList))
             {
-                TaskDialog.Show("Addin", "The object you have selected is is not AXIS.\nIt is: "+ category.Name);
+                TaskDialog.Show("Addin", "Sorry, they are not parallel to each other.");
+                return Result.Failed;
             }
-            TaskDialog.Show("Addin", getElementParameters(current_el, currentDoc));
+            TaskDialog.Show("Addin", "Well done:)");
             return Result.Succeeded;
         }
-        string getElementParameters(Element el, Document currentDoc)
+        bool areGridsParallel(List<Grid> grids_list)
         {
-            string messageBack = "The parameters of this element are:";
-            ParameterSet parameterSet = el.Parameters;
-            foreach (Parameter parameter in parameterSet)
+            XYZ dirb = (grids_list[0].Curve as Line).Direction;
+            bool global_res = true;
+            /*string debug_local = "";
+            int i = 1;
+            foreach (Grid item in grids_list)
             {
-                string former_para = "\n" + parameter.Definition.Name + " : ";
-                switch (parameter.StorageType)
-                {
-                    case StorageType.Integer:
-                        if (parameter.Definition.ParameterType == ParameterType.YesNo)
-                        {
-                            if (parameter.AsInteger() == 0)
-                            {
-                                former_para += "False";
-                            }
-                            else
-                            {
-                                former_para += "True";
-                            }
-                            break;
-                        }
-                        former_para += parameter.AsInteger();
-                        break;
-                    case StorageType.String:
-                        former_para += parameter.AsString();
-                        break;
-                    case StorageType.Double:
-                        former_para += parameter.AsValueString();
-                        break;
-                    case StorageType.ElementId:
-                        ElementId temp_id = parameter.AsElementId();
-                        if (temp_id.IntegerValue >= 0)
-                        {
-                            former_para += currentDoc.GetElement(temp_id).Name;
-                            break;
-                        }
-                        former_para += temp_id.IntegerValue;
-                        break;
-                    default:
-                        former_para += "UNKNOWN";
-                        break;
-                }
-                messageBack += former_para + ";";
+                XYZ dir2 = (item.Curve as Line).Direction;
+                bool local_res = ((dir2.X != dirb.X) | (dir2.Y != dirb.Y) | (dir2.Z != dirb.Z)) ? false : true;
+                global_res = local_res & global_res;
+                debug_local += string.Format("\n {4}: {0}, {1}, {2}; local: {3}", dir2.X, dir2.Y, dir2.Z, local_res,i++);
             }
-            return messageBack;
+            debug_local = string.Format("Global: {0}.\n{1}", global_res, debug_local);
+            TaskDialog.Show("Addin", debug_local); */
+            foreach (Grid item in grids_list)
+            {
+                XYZ dir2 = (item.Curve as Line).Direction;
+                bool local_res = dir2.IsAlmostEqualTo(dirb) ? true : false;
+                if(!local_res)
+                {
+                    return false;
+                }
+            }
+            return global_res;
         }
-
     }
 }

@@ -4,14 +4,31 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.Attributes;
-using System.Text;
+using System.Reflection;
 
 
 namespace ElementReader
 {
-    [Transaction(TransactionMode.Manual)]
-    public class ElementReader : IExternalCommand
+    public class ElementReader : IExternalApplication
     {
+        public Result OnStartup(UIControlledApplication application)
+        {
+            RibbonPanel ribbonPanel = application.CreateRibbonPanel("Grid Handler");
+            string path = Assembly.GetExecutingAssembly().Location;
+            PushButtonData buttonData = new PushButtonData("Grid.Rename", "Grid handler", path, "ElementReader.SubCmd");
+            PushButton pushButton = (PushButton)ribbonPanel.AddItem(buttonData);
+            pushButton.ToolTip = "Select grids before applying this function";
+            return Result.Succeeded;
+        }
+        public Result OnShutdown(UIControlledApplication application)
+        {
+            return Result.Succeeded;
+        }
+    }
+    [Transaction(TransactionMode.Manual)]
+    public class SubCmd : IExternalCommand
+    {
+        public static List<Grid> elList;
         public Result Execute(ExternalCommandData externalCommandData, ref string str, ElementSet element)
         {
             UIDocument UIcurrentDoc = externalCommandData.Application.ActiveUIDocument;
@@ -20,22 +37,14 @@ namespace ElementReader
             ICollection<ElementId> collection = selection.GetElementIds(); //Retrieving element Ids from the selection
             if (collection.Count == 0)
             {
-                TaskDialog.Show("AxisAddin", "You haven't selected any grids");
+                TaskDialog.Show("AxisAddin", "You haven't selected any grids. Select grids before applying this function.");
                 return Result.Failed;
             }
             /*Getting the element by Id and checking if the element belongs to Axis type*/
-            List<Grid> elList = new List<Grid>();
+            elList = new List<Grid>();
             foreach (ElementId elId in collection)
             {
                 Element current_el = currentDoc.GetElement(elId);
-                /*BuiltInCategory enumCategory = (BuiltInCategory)current_el.Category.Id.IntegerValue;
-                if (enumCategory != BuiltInCategory.OST_Grids) 
-                {
-                    TaskDialog.Show("Addin", "Sorry. It is not Grid");
-                    return Result.Failed; 
-                }
-                //Too many lines. There is the better way:
-                */
                 if (!(current_el is Grid))
                 {
                     TaskDialog.Show("Addin", "Sorry. It is not Grid");
@@ -44,17 +53,25 @@ namespace ElementReader
                 elList.Add(current_el as Grid);
             }
             // checking if the grids are parallel
-            if (!areGridsParallel(elList))
+            if (!areGridsParallel())
             {
                 TaskDialog.Show("Addin", "Sorry, they are not parallel to each other.");
                 return Result.Failed;
             }
-            TaskDialog.Show("Addin", "Well done:)");
+            selection.SetElementIds(new List<ElementId>());
+            Reference pickedObj = selection.PickObject(ObjectType.Element, "Please, choose the first grid.");
+            ElementId thfrst = pickedObj.LinkedElementId;
+            if (!(currentDoc.GetElement(thfrst) is Grid) || !elList.Contains((Grid)currentDoc.GetElement(thfrst)))
+            {
+                TaskDialog.Show("Addin", "You need to choose the object that belongs to the selected ones");
+                return Result.Failed;
+            }
+            TaskDialog.Show("Addin", "Well done. Keep going");
             return Result.Succeeded;
         }
-        bool areGridsParallel(List<Grid> grids_list)
+        private bool areGridsParallel()
         {
-            XYZ dirb = (grids_list[0].Curve as Line).Direction;
+            XYZ dirb = (elList[0].Curve as Line).Direction;
             bool global_res = true;
             /*string debug_local = "";
             int i = 1;
@@ -67,11 +84,11 @@ namespace ElementReader
             }
             debug_local = string.Format("Global: {0}.\n{1}", global_res, debug_local);
             TaskDialog.Show("Addin", debug_local); */
-            foreach (Grid item in grids_list)
+            foreach (Grid item in elList)
             {
                 XYZ dir2 = (item.Curve as Line).Direction;
                 bool local_res = dir2.IsAlmostEqualTo(dirb) ? true : false;
-                if(!local_res)
+                if (!local_res)
                 {
                     return false;
                 }

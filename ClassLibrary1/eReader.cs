@@ -40,7 +40,7 @@ namespace ElementReader
                 TaskDialog.Show("AxisAddin", "You haven't selected any grids. Select grids before applying this function.");
                 return Result.Failed;
             }
-            /*Getting the element by Id and checking if the element belongs to Axis type*/
+            /*Getting the element by Id and checking if the element belongs to Grid type*/
             elList = new List<Grid>();
             foreach (ElementId elId in collection)
             {
@@ -51,49 +51,46 @@ namespace ElementReader
                     return Result.Failed;
                 }
                 elList.Add(current_el as Grid);
-            }
+            }         
             // checking if the grids are parallel
             if (!areGridsParallel())
             {
                 TaskDialog.Show("Addin", "Sorry, they are not parallel to each other.");
                 return Result.Failed;
             }
-            selection.SetElementIds(new List<ElementId>());
             Reference pickedObj = selection.PickObject(ObjectType.Element, "Please, choose the first grid.");
-            ElementId thfrst = pickedObj.LinkedElementId;
-            if (!(currentDoc.GetElement(thfrst) is Grid) || !elList.Contains((Grid)currentDoc.GetElement(thfrst)))
+            ElementId picked_el = pickedObj.ElementId;
+            if (!(currentDoc.GetElement(picked_el) is Grid)||!DoesContain(currentDoc.GetElement(picked_el) as Grid))
             {
-                TaskDialog.Show("Addin", "You need to choose the object that belongs to the selected ones");
+                TaskDialog.Show("Addin", string.Format("You need to choose the object that belongs to the previously selected ones."));
                 return Result.Failed;
             }
-            TaskDialog.Show("Addin", "Well done. Keep going");
+            /*GetGridsRightOrder()*/
             return Result.Succeeded;
         }
         private bool areGridsParallel()
         {
             XYZ dirb = (elList[0].Curve as Line).Direction;
-            bool global_res = true;
-            /*string debug_local = "";
-            int i = 1;
-            foreach (Grid item in grids_list)
-            {
-                XYZ dir2 = (item.Curve as Line).Direction;
-                bool local_res = ((dir2.X != dirb.X) | (dir2.Y != dirb.Y) | (dir2.Z != dirb.Z)) ? false : true;
-                global_res = local_res & global_res;
-                debug_local += string.Format("\n {4}: {0}, {1}, {2}; local: {3}", dir2.X, dir2.Y, dir2.Z, local_res,i++);
-            }
-            debug_local = string.Format("Global: {0}.\n{1}", global_res, debug_local);
-            TaskDialog.Show("Addin", debug_local); */
             foreach (Grid item in elList)
             {
                 XYZ dir2 = (item.Curve as Line).Direction;
-                bool local_res = dir2.IsAlmostEqualTo(dirb) ? true : false;
-                if (!local_res)
+                if (!dir2.IsAlmostEqualTo(dirb))
                 {
                     return false;
                 }
             }
-            return global_res;
+            return true;
+        }
+        private bool DoesContain(Grid el)
+        {
+            foreach(Grid grid in elList)
+            {
+                if(el.Id==grid.Id)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

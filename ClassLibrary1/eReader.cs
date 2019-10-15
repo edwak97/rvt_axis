@@ -28,11 +28,13 @@ namespace ElementReader
     [Transaction(TransactionMode.Manual)]
     public class SubCmd : IExternalCommand
     {
-        public static List<Grid> elList;
+        private static List<Grid> elList;
+        private static XYZ gridDirection;
+        private static Document currentDoc;
         public Result Execute(ExternalCommandData externalCommandData, ref string str, ElementSet element)
         {
             UIDocument UIcurrentDoc = externalCommandData.Application.ActiveUIDocument;
-            Document currentDoc = UIcurrentDoc.Document;
+            currentDoc = UIcurrentDoc.Document;
             Selection selection = UIcurrentDoc.Selection;
             ICollection<ElementId> collection = selection.GetElementIds(); //Retrieving element Ids from the selection
             if (collection.Count == 0)
@@ -51,30 +53,23 @@ namespace ElementReader
                     return Result.Failed;
                 }
                 elList.Add(current_el as Grid);
-            }         
+            }
             // checking if the grids are parallel
             if (!areGridsParallel())
             {
                 TaskDialog.Show("Addin", "Sorry, they are not parallel to each other.");
                 return Result.Failed;
             }
-            Reference pickedObj = selection.PickObject(ObjectType.Element, "Please, choose the first grid.");
-            ElementId picked_el = pickedObj.ElementId;
-            if (!(currentDoc.GetElement(picked_el) is Grid)||!DoesContain(currentDoc.GetElement(picked_el) as Grid))
-            {
-                TaskDialog.Show("Addin", string.Format("You need to choose the object that belongs to the previously selected ones."));
-                return Result.Failed;
-            }
-            /*GetGridsRightOrder()*/
+            //RenameGridsFinish();
             return Result.Succeeded;
         }
-        private bool areGridsParallel()
+        private static bool areGridsParallel()
         {
-            XYZ dirb = (elList[0].Curve as Line).Direction;
+            gridDirection = (elList[0].Curve as Line).Direction.Normalize();
             foreach (Grid item in elList)
             {
                 XYZ dir2 = (item.Curve as Line).Direction;
-                if (!dir2.IsAlmostEqualTo(dirb))
+                if (!dir2.IsAlmostEqualTo(gridDirection))
                 {
                     return false;
                 }
@@ -83,14 +78,49 @@ namespace ElementReader
         }
         private bool DoesContain(Grid el)
         {
-            foreach(Grid grid in elList)
+            foreach (Grid grid in elList)
             {
-                if(el.Id==grid.Id)
+                if (el.Id == grid.Id)
                 {
                     return true;
                 }
             }
             return false;
+        }
+        private static XYZ NormalVector
+        {
+            get
+            {
+                /*  x1*x_n + y1*y_n = 0;
+                 where x1 = gridDirection.X; y1 = gridDirection.Y;
+                 x_n = 1; y_n =  x1/y1 EXCEPT y1=0*/
+                return (gridDirection.IsAlmostEqualTo(new XYZ(1, 0, 0)) || gridDirection.IsAlmostEqualTo(new XYZ(-1, 0, 0))) ? new XYZ(0, 1, 0) : new XYZ(1, -gridDirection.X / gridDirection.Y, 0);
+            }
+        }
+        private void RenameGridsFinish()
+        {
+            string[] gridNames = new string[elList.Count];
+            for (int i = 0; i < elList.Count; i++) //Reading Grid names and writing them to the array
+            {
+                gridNames[i] = elList[i].Name;
+            }
+            for (int i = 0; i < gridNames.Length; i++) // it won't be int. But enough for testing
+            {
+                int tempval = System.Int32.Parse(gridNames[i]);
+                for (int k = i - 1; k > -1; i++)
+                {
+                    //body
+                }
+            }
+            using (Transaction trnsct = new Transaction(currentDoc))
+            {
+                trnsct.Start("Grid renaming");
+                for (int i = 0; i < elList.Count; i++)
+                {
+                    elList[0].Name = gridNames[i];
+                }
+                trnsct.Commit();
+            }
         }
     }
 }

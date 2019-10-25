@@ -60,6 +60,18 @@ namespace ElementReader
                 TaskDialog.Show("Addin", "Sorry, they are not parallel to each other.");
                 return Result.Failed;
             }
+            string s = "The coordinates of the selected grids are:";
+            XYZ[] nodeCoords0 = new XYZ[elList.Count];
+            double[] dArr = new double[elList.Count];
+            var norm = (X: NormalVector.X, Y: NormalVector.Y);
+            for (int i = 0; i < elList.Count; i++)
+            {
+                nodeCoords0[i] = (elList[i].Curve as Line).GetEndPoint(0);
+                dArr[i] = (norm.X * nodeCoords0[i].X + norm.Y * nodeCoords0[i].Y);
+                s += string.Format("\n{2}.0: ({0}, {1})\nlocalX: {3}.", nodeCoords0[i].X, nodeCoords0[i].Y, elList[i].Name, dArr[i]);
+            }
+            TaskDialog.Show("Addin", s);
+
             //RenameGridsFinish();
             return Result.Succeeded;
         }
@@ -91,10 +103,11 @@ namespace ElementReader
         {
             get
             {
-                /*  x1*x_n + y1*y_n = 0;
-                 where x1 = gridDirection.X; y1 = gridDirection.Y;
-                 x_n = 1; y_n =  x1/y1 EXCEPT y1=0*/
-                return (gridDirection.IsAlmostEqualTo(new XYZ(1, 0, 0)) || gridDirection.IsAlmostEqualTo(new XYZ(-1, 0, 0))) ? new XYZ(0, 1, 0) : new XYZ(1, -gridDirection.X / gridDirection.Y, 0);
+                if (gridDirection.IsAlmostEqualTo(new XYZ(1, 0, 0)) || gridDirection.IsAlmostEqualTo(new XYZ(-1, 0, 0)))
+                {
+                    return new XYZ(0, 1, 0);
+                }
+                return new XYZ(1, -gridDirection.X / gridDirection.Y, 0).Normalize();
             }
         }
         private void RenameGridsFinish()
@@ -106,7 +119,7 @@ namespace ElementReader
             }
             for (int i = 0; i < gridNames.Length; i++) // it won't be int. But enough for testing
             {
-                int tempval = System.Int32.Parse(gridNames[i]);
+                int tempval = int.Parse(gridNames[i]);
                 for (int k = i - 1; k > -1; i++)
                 {
                     //body

@@ -63,11 +63,11 @@ namespace ElementReader
             string s = "The coordinates of the selected grids are:";
             XYZ[] nodeCoords0 = new XYZ[elList.Count];
             double[] dArr = new double[elList.Count];
-            var norm = (X: NormalVector.X, Y: NormalVector.Y);
+            var nvector = (X: NormalVector.X, Y: NormalVector.Y);
             for (int i = 0; i < elList.Count; i++)
             {
                 nodeCoords0[i] = (elList[i].Curve as Line).GetEndPoint(0);
-                dArr[i] = (norm.X * nodeCoords0[i].X + norm.Y * nodeCoords0[i].Y);
+                dArr[i] = (nvector.X * nodeCoords0[i].X + nvector.Y * nodeCoords0[i].Y);
                 s += string.Format("\n{2}.0: ({0}, {1})\nlocalX: {3}.", nodeCoords0[i].X, nodeCoords0[i].Y, elList[i].Name, dArr[i]);
             }
             TaskDialog.Show("Addin", s);

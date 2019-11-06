@@ -29,6 +29,7 @@ namespace ElementReader
     public class SubCmd : IExternalCommand
     {
         private static List<Grid> elList;
+        private static GridsTemplate[] gridTemplates;
         private static XYZ gridDirection;
         private static Document currentDoc;
         public Result Execute(ExternalCommandData externalCommandData, ref string str, ElementSet element)
@@ -36,23 +37,25 @@ namespace ElementReader
             UIDocument UIcurrentDoc = externalCommandData.Application.ActiveUIDocument;
             currentDoc = UIcurrentDoc.Document;
             Selection selection = UIcurrentDoc.Selection;
-            ICollection<ElementId> collection = selection.GetElementIds(); //Retrieving element Ids from the selection
-            if (collection.Count == 0)
             {
-                TaskDialog.Show("AxisAddin", "You haven't selected any grids. Select grids before applying this function.");
-                return Result.Failed;
-            }
-            /*Getting the element by Id and checking if the element belongs to Grid type*/
-            elList = new List<Grid>();
-            foreach (ElementId elId in collection)
-            {
-                Element current_el = currentDoc.GetElement(elId);
-                if (!(current_el is Grid))
+                ICollection<ElementId> collection = selection.GetElementIds(); //Retrieving element Ids from the selection
+                if (collection.Count == 0)
                 {
-                    TaskDialog.Show("Addin", "Sorry. It is not Grid");
+                    TaskDialog.Show("AxisAddin", "You haven't selected any grids. Select grids before applying this function.");
                     return Result.Failed;
                 }
-                elList.Add(current_el as Grid);
+                /*Getting the element by Id and checking if the element belongs to Grid type*/
+                elList = new List<Grid>();
+                foreach (ElementId elId in collection)
+                {
+                    Element current_el = currentDoc.GetElement(elId);
+                    if (!(current_el is Grid))
+                    {
+                        TaskDialog.Show("Addin", "Sorry. It is not Grid");
+                        return Result.Failed;
+                    }
+                    elList.Add(current_el as Grid);
+                }
             }
             // checking if the grids are parallel
             if (!areGridsParallel())
@@ -60,19 +63,13 @@ namespace ElementReader
                 TaskDialog.Show("Addin", "Sorry, they are not parallel to each other.");
                 return Result.Failed;
             }
-            string s = "The coordinates of the selected grids are:";
-            XYZ[] nodeCoords0 = new XYZ[elList.Count];
-            double[] dArr = new double[elList.Count];
-            var nvector = (X: NormalVector.X, Y: NormalVector.Y);
-            for (int i = 0; i < elList.Count; i++)
+            RenameGridsFinish();
+            string s = "";
+            for (int i = 0; i < gridTemplates.Length; i++)
             {
-                nodeCoords0[i] = (elList[i].Curve as Line).GetEndPoint(0);
-                dArr[i] = (nvector.X * nodeCoords0[i].X + nvector.Y * nodeCoords0[i].Y);
-                s += string.Format("\n{2}.0: ({0}, {1})\nlocalX: {3}.", nodeCoords0[i].X, nodeCoords0[i].Y, elList[i].Name, dArr[i]);
+                s += string.Format("\n{0}: {1}, {2}", i, gridTemplates[i].Name, gridTemplates[i].Projection);
             }
             TaskDialog.Show("Addin", s);
-
-            //RenameGridsFinish();
             return Result.Succeeded;
         }
         private static bool areGridsParallel()
@@ -112,28 +109,97 @@ namespace ElementReader
         }
         private void RenameGridsFinish()
         {
-            string[] gridNames = new string[elList.Count];
-            for (int i = 0; i < elList.Count; i++) //Reading Grid names and writing them to the array
+            gridTemplates = new GridsTemplate[elList.Count];
+            for (int i = 0; i < gridTemplates.Length; i++)
             {
-                gridNames[i] = elList[i].Name;
-            }
-            for (int i = 0; i < gridNames.Length; i++) // it won't be int. But enough for testing
+                XYZ NodeCoord = (elList[i].Curve as Line).GetEndPoint(0);
+                double projection = (NormalVector.X * NodeCoord.X + NormalVector.Y * NodeCoord.Y);
+                gridTemplates[i] = new GridsTemplate(elList[i], projection, elList[i].Name);
+            } /*writing data to the structs*/
+            for (int i = 1; i < gridTemplates.Length; i++)
             {
-                int tempval = int.Parse(gridNames[i]);
-                for (int k = i - 1; k > -1; i++)
+                GridsTemplate tempo = gridTemplates[i];
+                int k = i - 1;
+                while ((k > -1) && (gridTemplates[k].Projection > tempo.Projection))
                 {
-                    //body
+                    gridTemplates[k + 1] = gridTemplates[k--];
+                }
+                gridTemplates[k + 1] = tempo;
+            }/*sorting gridTemplates by projections so that we know the actual order but names are still wrong*/
+            bool alreadyDone = true;
+            for (int i = 1; i < gridTemplates.Length; i++)
+            {
+                string tempo = gridTemplates[i].Name;
+                int k = i - 1;
+                while ((k > -1) && GridsTemplate.MoreThan(gridTemplates[k].Name, tempo))
+                {
+                    alreadyDone = false;
+                    gridTemplates[k + 1].Name = gridTemplates[k--].Name;
+                }
+                gridTemplates[k + 1].Name = tempo;
+            }
+            if (alreadyDone)//reverse the order if done
+            {
+                int i = 0;
+                while (!(i+1 > gridTemplates.Length / 2))
+                {
+                    string temp = gridTemplates[i].Name;
+                    gridTemplates[i].Name = gridTemplates[gridTemplates.Length - i - 1].Name;
+                    gridTemplates[gridTemplates.Length - i++ - 1].Name = temp;
                 }
             }
-            using (Transaction trnsct = new Transaction(currentDoc))
+            using (Transaction trnsct = new Transaction(currentDoc))//rewriting
             {
-                trnsct.Start("Grid renaming");
+                trnsct.Start("Grid pseudo renaming");
                 for (int i = 0; i < elList.Count; i++)
                 {
-                    elList[0].Name = gridNames[i];
+                    gridTemplates[i].gridInstance.Name = "gridTemplates" + i;
+                }
+                trnsct.Commit();
+                trnsct.Start("renaming");
+                for (int i = 0; i < elList.Count; i++)
+                {
+                    gridTemplates[i].gridInstance.Name = gridTemplates[i].Name;
                 }
                 trnsct.Commit();
             }
+            using (Transaction trnsct2 = new Transaction(currentDoc))//rewriting
+            {
+                trnsct2.Start("renaming");
+                for (int i = 0; i < elList.Count; i++)
+                {
+                    gridTemplates[i].gridInstance.Name = gridTemplates[i].Name;
+                }
+                trnsct2.Commit();
+            }
         }
     }
+
+}
+public struct GridsTemplate
+{
+    public Grid gridInstance;
+    public double Projection;
+    public string Name;
+    public GridsTemplate(Grid instance, double projection, string name)
+    {
+        gridInstance = instance;
+        Projection = projection;
+        Name = name;
+    }
+    public static bool MoreThan(string left, string right)
+    {
+        int l; int r;
+        bool bl = int.TryParse(left, out l);
+        bool br = int.TryParse(right, out r);
+        if (bl && br)
+        {
+            return l > r;
+        }
+        return string.Compare(left, right, false, System.Globalization.CultureInfo.CurrentCulture) > 0;
+    }
+
+
+
+
 }

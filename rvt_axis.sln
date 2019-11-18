@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.539
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ElementReader", "ClassLibrary1\ElementReader.csproj", "{F8B103D0-8016-4233-8BCA-0BC183BF1262}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rvt_axis", "CS\rvt_axis.csproj", "{F8B103D0-8016-4233-8BCA-0BC183BF1262}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

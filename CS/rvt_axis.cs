@@ -7,15 +7,15 @@ using Autodesk.Revit.Attributes;
 using System.Reflection;
 
 
-namespace ElementReader
+namespace rvt_axis
 {
-    public class ElementReader : IExternalApplication
+    public class Rvt_axis : IExternalApplication
     {
         public Result OnStartup(UIControlledApplication application)
         {
             RibbonPanel ribbonPanel = application.CreateRibbonPanel("Grid Handler");
             string path = Assembly.GetExecutingAssembly().Location;
-            PushButtonData buttonData = new PushButtonData("Grid.Rename", "Grid handler", path, "ElementReader.SubCmd");
+            PushButtonData buttonData = new PushButtonData("Grid.Rename", "Grid handler", path, "rvt_axis.SubCmd");
             PushButton pushButton = (PushButton)ribbonPanel.AddItem(buttonData);
             pushButton.ToolTip = "Select grids before applying this function";
             return Result.Succeeded;
@@ -85,17 +85,6 @@ namespace ElementReader
             }
             return true;
         }
-        private bool DoesContain(Grid el)
-        {
-            foreach (Grid grid in elList)
-            {
-                if (el.Id == grid.Id)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
         private static XYZ NormalVector
         {
             get
@@ -138,7 +127,7 @@ namespace ElementReader
                 }
                 gridTemplates[k + 1].Name = tempo;
             }
-            if (alreadyDone)//reverse the order if done
+            if (alreadyDone)/*reverse the order if done*/
             {
                 int i = 0;
                 while (!(i+1 > gridTemplates.Length / 2))
@@ -148,33 +137,21 @@ namespace ElementReader
                     gridTemplates[gridTemplates.Length - i++ - 1].Name = temp;
                 }
             }
-            using (Transaction trnsct = new Transaction(currentDoc))//rewriting
+            using (Transaction trnsct = new Transaction(currentDoc))/*assigning temp values and rewriting*/
             {
-                trnsct.Start("Grid pseudo renaming");
+                trnsct.Start("Preparing");
                 for (int i = 0; i < elList.Count; i++)
                 {
-                    gridTemplates[i].gridInstance.Name = "gridTemplates" + i;
+                    gridTemplates[i].gridInstance.Name = "grtmplts" + i;
                 }
-                trnsct.Commit();
-                trnsct.Start("renaming");
                 for (int i = 0; i < elList.Count; i++)
                 {
                     gridTemplates[i].gridInstance.Name = gridTemplates[i].Name;
                 }
                 trnsct.Commit();
-            }
-            using (Transaction trnsct2 = new Transaction(currentDoc))//rewriting
-            {
-                trnsct2.Start("renaming");
-                for (int i = 0; i < elList.Count; i++)
-                {
-                    gridTemplates[i].gridInstance.Name = gridTemplates[i].Name;
-                }
-                trnsct2.Commit();
             }
         }
     }
-
 }
 public struct GridsTemplate
 {
@@ -189,17 +166,13 @@ public struct GridsTemplate
     }
     public static bool MoreThan(string left, string right)
     {
-        int l; int r;
-        bool bl = int.TryParse(left, out l);
-        bool br = int.TryParse(right, out r);
+        double l, r;
+        bool bl = double.TryParse(left, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out l);
+        bool br = double.TryParse(right, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out r);
         if (bl && br)
         {
             return l > r;
         }
-        return string.Compare(left, right, false, System.Globalization.CultureInfo.CurrentCulture) > 0;
+        return string.Compare(left, right, false, System.Globalization.CultureInfo.InvariantCulture) > 0;
     }
-
-
-
-
 }
